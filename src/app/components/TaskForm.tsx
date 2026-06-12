@@ -4,15 +4,23 @@ import { useState, useRef } from 'react'
 import styles from './TaskForm.module.css'
 
 interface Props {
-  onAdd: (title: string, description: string) => Promise<void>
+  onAdd: (title: string, description: string, dueDate?: string) => Promise<void>
 }
 
 export default function TaskForm({ onAdd }: Props) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
+  const [dueDateStr, setDueDateStr] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [showDesc, setShowDesc] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '')
+    if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2)
+    if (val.length > 5) val = val.slice(0, 5) + '/' + val.slice(5, 9)
+    setDueDateStr(val)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,9 +28,16 @@ export default function TaskForm({ onAdd }: Props) {
 
     setSubmitting(true)
     try {
-      await onAdd(title.trim(), description.trim())
+      let isoDate = ''
+      if (dueDateStr.length === 10) {
+        const [day, month, year] = dueDateStr.split('/')
+        isoDate = `${year}-${month}-${day}`
+      }
+
+      await onAdd(title.trim(), description.trim(), isoDate)
       setTitle('')
       setDescription('')
+      setDueDateStr('')
       setShowDesc(false)
       titleRef.current?.focus()
     } finally {
@@ -57,6 +72,20 @@ export default function TaskForm({ onAdd }: Props) {
             rows={3}
             maxLength={1000}
             disabled={submitting}
+          />
+          <div className={styles.inputLine} />
+          <div style={{ marginTop: '10px', fontSize: '13px', color: 'var(--ink-muted)' }}>
+            Data de conclusão (opcional):
+          </div>
+          <input
+            type="text"
+            value={dueDateStr}
+            onChange={handleDateChange}
+            placeholder="DD/MM/AAAA"
+            className={styles.titleInput}
+            style={{ marginTop: '4px' }}
+            disabled={submitting}
+            maxLength={10}
           />
           <div className={styles.inputLine} />
         </div>

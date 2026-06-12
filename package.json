@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "name": "todo-app",
   "version": "0.1.0",
   "private": true,
@@ -13,7 +14,9 @@
     "db:seed": "ts-node --project tsconfig.json prisma/seed.ts"
   },
   "dependencies": {
+    "@google/genai": "^2.8.0",
     "@prisma/client": "^5.22.0",
+    "date-fns": "^4.4.0",
     "next": "14.2.5",
     "react": "^18",
     "react-dom": "^18"
@@ -25,5 +28,9 @@
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "typescript": "^5"
+=======
+  "dependencies": {
+    "@google/genai": "^2.4.0"
+>>>>>>> cbc0064211eb0e796b39c6158e5d3880d33fde6f
   }
 }

@@ -2,12 +2,17 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { Task } from '@/app/lib/types'
+import { formatDate } from '@/app/lib/formatDate'
 import styles from './TaskItem.module.css'
+import { AutoTagButton } from './AutoTagButton'
 
 interface Props {
-  task: Task
+  task: Task & {
+    dueDate?: Date | string | null
+    tags?: { id: string; name: string }[]
+  }
   onToggle: (id: string) => void
-  onEdit: (id: string, title: string, description: string) => void
+  onEdit: (id: string, title: string, description: string, dueDate?: string) => void
   onDelete: (id: string) => void
 }
 
@@ -15,6 +20,7 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editDesc, setEditDesc] = useState(task.description || '')
+  const [editDueDateStr, setEditDueDateStr] = useState(formatDate(task.dueDate, 'display'))
   const [hovered, setHovered] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -30,29 +36,39 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
     if (task.completed) return
     setEditTitle(task.title)
     setEditDesc(task.description || '')
+    setEditDueDateStr(formatDate(task.dueDate, 'display'))
     setEditing(true)
   }
 
   const handleSave = () => {
     if (!editTitle.trim()) return
-    onEdit(task.id, editTitle.trim(), editDesc.trim())
+    let isoDate = ''
+    if (editDueDateStr && editDueDateStr.length === 10) {
+      const [day, month, year] = editDueDateStr.split('/')
+      isoDate = `{$year}-${month}-${day}`
+    }
+    onEdit(task.id, editTitle.trim(), editDesc.trim(), isoDate)
     setEditing(false)
   }
 
   const handleCancel = () => {
     setEditTitle(task.title)
     setEditDesc(task.description || '')
+    setEditDueDateStr(formatDate(task.dueDate, 'display'))
     setEditing(false)
+  }
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value.replace(/\D/g, '')
+    if (val.length > 2) val = val.slice(0, 2) + '/' + val.slice(2)
+    if (val.length > 5) val = val.slice(0, 5) + '/' + val.slice(5, 9)
+    setEditDueDateStr(val)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave() }
     if (e.key === 'Escape') handleCancel()
   }
-
-  const formattedDate = new Intl.DateTimeFormat('pt-BR', {
-    day: '2-digit', month: 'short',
-  }).format(new Date(task.createdAt))
 
   if (editing) {
     return (
@@ -75,6 +91,16 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
           placeholder="Descrição (opcional)"
           rows={2}
           maxLength={1000}
+        />
+        <input
+          type="text"
+          value={editDueDateStr}
+          onChange={handleDateChange}
+          onKeyDown={handleKeyDown}
+          className={styles.editTitle}
+          placeholder="Data de conclusão (DD/MM/AAAA)"
+          maxLength={10}
+          style={{ marginTop: '8px' }}
         />
         <div className={styles.editActions}>
           <button onClick={handleSave} className={styles.saveBtn} disabled={!editTitle.trim()}>
@@ -120,7 +146,29 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
         {task.description && (
           <p className={styles.description}>{task.description}</p>
         )}
-        <span className={styles.date}>{formattedDate}</span>
+        <div style={{ display: 'flex', gap: '16px', marginTop: '4px' }}>
+          <span className={styles.date}>CRIADO EM: {formatDate(task.createdAt, 'display')}</span>
+          {task.dueDate && (
+            <span className={styles.date}>
+              DATA DE CONCLUSÀO: {formatDate(task.dueDate, 'display')}
+            </span>
+          )}
+        </div>
+
+        {task.tags && task.tags.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px', alignItems: 'center' }}>
+            <span className={styles.date}>Tags:</span>
+            {task.tags.map(tag => (
+              <span key={tag.id} style={{ fontSize: '0.75rem', background: '#e5e7eb', color: '#374151', padding: '2px 8px', borderRadius: '12px' }}>
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <div style={{ marginTop: '12px' }} onClick={(e) => e.stopPropagation()}>
+          <AutoTagButton taskId={task.id} onTagsUpdated={() => window.location.reload()} />
+        </div>
       </div>
 
       {/* Actions */}

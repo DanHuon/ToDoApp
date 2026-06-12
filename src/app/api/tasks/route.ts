@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     const userId = decoded.split(':')[0]
 
     const body = await request.json()
-    const { title, description } = body
+    const { title, description, dueDate } = body
 
     if (!title || title.trim() === '') {
       return NextResponse.json({ error: 'Título é obrigatório' }, { status: 400 })
@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       data: {
         title: title.trim(),
         description: description?.trim() || null,
+        dueDate: dueDate ? new Date(dueDate) : null,
         userId,
       },
     })

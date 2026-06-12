@@ -38,6 +38,20 @@ async function main() {
 
   console.log('Regular user created:', user)
 
+  // Create sample tags for the regular user
+  const tagEstudos = await prisma.tag.create({
+    data: { name: 'Estudos', description: 'Tarefas relacionadas a cursos, faculdade e aprendizado', userId: user.id }
+  })
+  const tagSaude = await prisma.tag.create({
+    data: { name: 'Saúde', description: 'Exercícios físicos, médicos e bem-estar', userId: user.id }
+  })
+  console.log('Sample tags created')
+
+  const tomorrow = new Date()
+  tomorrow.setDate(tomorrow.getDate() + 1)
+  const nextWeek = new Date()
+  nextWeek.setDate(nextWeek.getDate() + 7)
+
   // Create some sample tasks for the regular user
   const task1 = await prisma.task.create({
     data: {
@@ -45,6 +59,10 @@ async function main() {
       description: 'Completar o tutorial de Next.js e criar um projeto',
       completed: true,
       userId: user.id,
+      dueDate: tomorrow,
+      tags: {
+        connect: [{ id: tagEstudos.id }]
+      }
     },
   })
 
@@ -54,6 +72,7 @@ async function main() {
       description: 'Revisar tipos genéricos e decoradores',
       completed: false,
       userId: user.id,
+      dueDate: nextWeek,
     },
   })
 
@@ -63,6 +82,7 @@ async function main() {
       description: 'Treinar na academia por 1 hora',
       completed: false,
       userId: user.id,
+      dueDate: tomorrow,
     },
   })
 

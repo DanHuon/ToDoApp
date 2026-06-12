@@ -32,9 +32,9 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { title, description, completed } = body
+    const { title, description, completed, dueDate } = body
 
-    const data: { title?: string; description?: string | null; completed?: boolean } = {}
+    const data: { title?: string; description?: string | null; completed?: boolean; dueDate?: Date | null } = {}
 
     if (title !== undefined) {
       if (!title.trim()) {
@@ -49,6 +49,10 @@ export async function PATCH(
 
     if (completed !== undefined) {
       data.completed = completed
+    }
+
+    if (dueDate !== undefined) {
+      data.dueDate = dueDate ? new Date(dueDate) : null
     }
 
     const task = await prisma.task.update({

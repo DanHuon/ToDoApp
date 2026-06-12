@@ -1,6 +1,14 @@
-IMPLEMENTATION.md
+# Dependências
+node_modules/
+
+# Builds e Caches
+.next/
+dist/
+.cache/
+
+# Variáveis de Ambiente (Segurança)
 .env
-readme.md
+
+# Arquivos Específicos do Projeto
+IMPLEMENTATION.md
 .agents
-node_modules
-dist

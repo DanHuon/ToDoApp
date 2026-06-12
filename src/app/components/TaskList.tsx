@@ -5,10 +5,16 @@ import TaskItem from './TaskItem'
 import styles from './TaskList.module.css'
 
 interface Props {
-  tasks: Task[]
+  tasks: (Task & {
+    dueDate?: Date | string | null
+    tags?: {
+      id: string
+      name: string
+    }[]
+  })[]
   filter: string
   onToggle: (id: string) => void
-  onEdit: (id: string, title: string, description: string) => void
+  onEdit: (id: string, title: string, description: string, dueDate?: string) => void
   onDelete: (id: string) => void
 }
 
