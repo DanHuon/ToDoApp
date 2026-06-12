@@ -1,4 +1,4 @@
-// File: C:\Users\eduar\Downloads\todo-app-nextjs\src\app\layout.tsx
+// File: D:\Programacao\ToDoApp\ToDo-app\src\app\layout.tsx
 import * as entry from '../../../src/app/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

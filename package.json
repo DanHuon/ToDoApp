@@ -1,5 +1,4 @@
 {
-<<<<<<< HEAD
   "name": "todo-app",
   "version": "0.1.0",
   "private": true,
@@ -28,9 +27,5 @@
     "prisma": "^5.22.0",
     "ts-node": "^10.9.2",
     "typescript": "^5"
-=======
-  "dependencies": {
-    "@google/genai": "^2.4.0"
->>>>>>> cbc0064211eb0e796b39c6158e5d3880d33fde6f
   }
 }
