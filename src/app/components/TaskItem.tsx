@@ -4,7 +4,6 @@ import { useState, useRef, useEffect } from 'react'
 import { Task } from '@/app/lib/types'
 import { formatDate } from '@/app/lib/formatDate'
 import styles from './TaskItem.module.css'
-import { AutoTagButton } from './AutoTagButton'
 
 interface Props {
   task: Task & {
@@ -23,6 +22,7 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
   const [editDueDateStr, setEditDueDateStr] = useState(formatDate(task.dueDate, 'display'))
   const [hovered, setHovered] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [loadingIA, setLoadingIA] = useState(false)
   const titleInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -68,6 +68,27 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave() }
     if (e.key === 'Escape') handleCancel()
+  }
+
+  const handleAutoTag = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    setLoadingIA(true)
+    try {
+      const response = await fetch(`/api/tasks/${task.id}/auto-tag`, {
+        method: 'POST',
+      })
+      const data = await response.json()
+      
+      if (response.ok && data.success) {
+        window.location.reload()
+      } else {
+        alert(data.error || 'A IA não encontrou nenhuma tag compatível com esta tarefa')
+      }
+    } catch (error) {
+      alert('A IA não encontrou nenhuma tag compatível com esta tarefa')
+    } finally {
+      setLoadingIA(false)
+    }
   }
 
   if (editing) {
@@ -166,8 +187,41 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
           </div>
         )}
 
-        <div style={{ marginTop: '12px' }} onClick={(e) => e.stopPropagation()}>
-          <AutoTagButton taskId={task.id} onTagsUpdated={() => window.location.reload()} />
+        <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={handleAutoTag}
+            disabled={loadingIA}
+            style={{
+              background: 'none',
+              border: '1px solid var(--border-dark)',
+              color: 'var(--ink-muted)',
+              padding: '0.35rem 0.7rem',
+              borderRadius: '3px',
+              cursor: loadingIA ? 'not-allowed' : 'pointer',
+              fontSize: '0.75rem',
+              transition: 'all 0.3s ease',
+              fontFamily: "'DM Mono', monospace",
+              letterSpacing: '0.05em'
+            }}
+          >
+            {loadingIA ? 'Analisando...' : 'Tags IA'}
+          </button>
+          <button
+            style={{
+              background: 'none',
+              border: '1px solid var(--border-dark)',
+              color: 'var(--ink-muted)',
+              padding: '0.35rem 0.7rem',
+              borderRadius: '3px',
+              cursor: 'pointer',
+              fontSize: '0.75rem',
+              transition: 'all 0.3s ease',
+              fontFamily: "'DM Mono', monospace",
+              letterSpacing: '0.05em'
+            }}
+          >
+            Tags Manual
+          </button>
         </div>
       </div>
 

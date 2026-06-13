@@ -79,7 +79,7 @@ export async function POST(
       return NextResponse.json({ success: true, task: updatedTask });
     }
 
-    return NextResponse.json({ success: true, message: 'Nenhuma tag foi gerada.' });
+    return NextResponse.json({ error: 'A IA não encontrou nenhuma tag compatível com esta tarefa' }, { status: 404 });
   } catch (error) {
     console.error('Erro no Auto-Tagging:', error);
     return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
