@@ -92,14 +92,20 @@ export async function POST(
       .join('\n');
 
     const prompt = `
-      Voce é um assistente inteligente de categorizacao de tarefas.
-      Analise a tarefa abaixo e conecte todas as TAGS que facam sentido.
-      Sua unica opcao e relacionar com alguma(s) das TAGS DISPONIVEIS abaixo.
+      Voce é um assistente de IA extremamente conservador e rigoroso para categorizacao de tarefas.
+      Sua tarefa é analisar o Titulo e a Descricao da tarefa fornecida e associar apenas as TAGS que possuam uma relacao DIRETA, OBVIA e INQUESTIONAVEL.
+
+      DIRETRIZES DE DECISAO OBRIGATORIAS:
+      1. NAO FAÇA associações indiretas. Não crie justificativas mentais nem dê saltos lógicos para tentar encaixar uma tag (por exemplo: NÃO associe a tag "Saúde" ao ato de "Jogar o lixo fora" ou a tag "Faculdade" a "Comprar caneta", a menos que a descrição explicite essa correlação direta).
+      2. Seja extremamente conservador. Retornar o array "existingIds" vazio (ex: {"existingIds": []}) é o comportamento correto, esperado e recomendado caso não haja um "match" perfeito.
+      3. Limite de quantidade: Retorne no máximo até 2 tags por requisição.
+      
+      Sua única opção é relacionar com alguma(s) das TAGS DISPONIVEIS abaixo.
+      
       Retorne obrigatoriamente um objeto JSON com a seguinte estrutura:
       {
         "existingIds": ["id_da_tag1", "id_da_tag2"]
       }
-      Caso nenhuma tag se aplique, retorne a lista "existingIds" vazia: {"existingIds": []}.
 
       TAREFA:
       Titulo: ${task.title}
@@ -111,7 +117,7 @@ export async function POST(
 
     // Monta a lista de provedores ativos com base nas chaves no .env
     const providers = [];
-    
+
     // Suporta tanto GEMINI_API_KEY quanto a variável anterior AI_API_KEY
     const geminiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
     if (geminiKey) {
@@ -131,8 +137,8 @@ export async function POST(
     }
 
     if (providers.length === 0) {
-      return NextResponse.json({ 
-        error: 'Nenhuma chave de API de IA configurada. Defina GEMINI_API_KEY ou LLAMA_API_KEY no arquivo .env.' 
+      return NextResponse.json({
+        error: 'Nenhuma chave de API de IA configurada. Defina GEMINI_API_KEY ou LLAMA_API_KEY no arquivo .env.'
       }, { status: 400 });
     }
 
@@ -154,20 +160,20 @@ export async function POST(
     }
 
     if (!executedSuccessfully) {
-      const isRateLimit = errors.some(e => 
-        e.includes('429') || 
-        e.toLowerCase().includes('quota') || 
+      const isRateLimit = errors.some(e =>
+        e.includes('429') ||
+        e.toLowerCase().includes('quota') ||
         e.toLowerCase().includes('limit')
       );
-      
+
       if (isRateLimit) {
-        return NextResponse.json({ 
-          error: 'Limite de cota excedido em todos os provedores de IA configurados. Por favor, tente novamente mais tarde.' 
+        return NextResponse.json({
+          error: 'Limite de cota excedido em todos os provedores de IA configurados. Por favor, tente novamente mais tarde.'
         }, { status: 429 });
       }
 
-      return NextResponse.json({ 
-        error: `Falha ao processar autotagueamento nos provedores de IA. Detalhes: ${errors.join(', ')}` 
+      return NextResponse.json({
+        error: `Falha ao processar autotagueamento nos provedores de IA. Detalhes: ${errors.join(', ')}`
       }, { status: 500 });
     }
 

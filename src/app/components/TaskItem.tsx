@@ -245,7 +245,25 @@ export default function TaskItem({ task, availableTags, onToggle, onEdit, onDele
               Tags Manual
             </button>
             {showTagMenu && (
-              <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '8px', background: '#fff', border: '1px solid var(--border-dark)', borderRadius: '4px', padding: '8px', zIndex: 10, minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+              <div style={{
+                position: 'absolute',
+                bottom: '100%',
+                right: 0,
+                marginBottom: '8px',
+                background: '#fff',
+                border: '1px solid var(--border-dark)',
+                borderRadius: '4px',
+                padding: '8px',
+                zIndex: 10,
+                minWidth: '160px',
+                maxHeight: '180px',
+                overflowY: 'auto',
+                scrollbarWidth: 'thin',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                boxShadow: '0 4px 12px rgba(26, 23, 20, 0.15)'
+              }}>
                 {availableTags.length === 0 ? (
                   <span style={{ fontSize: '0.75rem', color: '#666' }}>Nenhuma tag criada</span>
                 ) : (
