@@ -3,7 +3,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: process.env.AI_API_KEY });
 
 export async function POST(
   request: NextRequest,
