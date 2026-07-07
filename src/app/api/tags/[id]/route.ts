@@ -23,7 +23,13 @@ export async function PATCH(
     }
     if (description !== undefined) data.description = description?.trim() || null;
 
-    const tag = await prisma.tag.update({ where: { id: params.id }, data });
+    const tag = await prisma.tag.update({
+      where: { id: params.id },
+      data,
+      include: {
+        tasks: true,
+      },
+    });
     return NextResponse.json(tag);
   } catch (error) {
     return NextResponse.json({ error: 'Falha ao atualizar tag' }, { status: 500 });

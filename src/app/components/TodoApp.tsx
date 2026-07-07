@@ -45,6 +45,10 @@ export default function TodoApp() {
     }
   }, [])
 
+  const refreshData = useCallback(async () => {
+    await Promise.all([fetchTasks(), fetchTags()])
+  }, [fetchTasks, fetchTags])
+
   useEffect(() => {
     fetchTasks()
     fetchTags()
@@ -297,9 +301,11 @@ export default function TodoApp() {
             <TaskList
               tasks={filteredTasks}
               filter={filter}
+              tags={tags}
               onToggle={toggleTask}
               onEdit={editTask}
               onDelete={deleteTask}
+              onRefresh={refreshData}
             />
           )}
         </section>

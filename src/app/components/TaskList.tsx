@@ -1,24 +1,20 @@
 'use client'
 
-import { Task } from '@/app/lib/types'
+import { Task, Tag } from '@/app/lib/types'
 import TaskItem from './TaskItem'
 import styles from './TaskList.module.css'
 
 interface Props {
-  tasks: (Task & {
-    dueDate?: Date | string | null
-    tags?: {
-      id: string
-      name: string
-    }[]
-  })[]
+  tasks: Task[]
   filter: string
+  tags: Tag[]
   onToggle: (id: string) => void
   onEdit: (id: string, title: string, description: string, dueDate?: string) => void
   onDelete: (id: string) => void
+  onRefresh: () => void
 }
 
-export default function TaskList({ tasks, filter, onToggle, onEdit, onDelete }: Props) {
+export default function TaskList({ tasks, filter, tags, onToggle, onEdit, onDelete, onRefresh }: Props) {
   if (tasks.length === 0) {
     const messages = {
       all: { title: 'Nenhuma tarefa', sub: 'Crie sua primeira tarefa ao lado.' },
@@ -52,9 +48,11 @@ export default function TaskList({ tasks, filter, onToggle, onEdit, onDelete }: 
           >
             <TaskItem
               task={task}
+              availableTags={tags}
               onToggle={onToggle}
               onEdit={onEdit}
               onDelete={onDelete}
+              onRefresh={onRefresh}
             />
           </li>
         ))}

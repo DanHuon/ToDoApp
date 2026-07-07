@@ -1,21 +1,20 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Task } from '@/app/lib/types'
+import { Task, Tag } from '@/app/lib/types'
 import { formatDate } from '@/app/lib/formatDate'
 import styles from './TaskItem.module.css'
 
 interface Props {
-  task: Task & {
-    dueDate?: Date | string | null
-    tags?: { id: string; name: string }[]
-  }
+  task: Task
+  availableTags: Tag[]
   onToggle: (id: string) => void
   onEdit: (id: string, title: string, description: string, dueDate?: string) => void
   onDelete: (id: string) => void
+  onRefresh: () => void
 }
 
-export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
+export default function TaskItem({ task, availableTags, onToggle, onEdit, onDelete, onRefresh }: Props) {
   const [editing, setEditing] = useState(false)
   const [editTitle, setEditTitle] = useState(task.title)
   const [editDesc, setEditDesc] = useState(task.description || '')
@@ -23,6 +22,7 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
   const [hovered, setHovered] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [loadingIA, setLoadingIA] = useState(false)
+  const [showTagMenu, setShowTagMenu] = useState(false)
   const titleInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
     let isoDate = ''
     if (editDueDateStr && editDueDateStr.length === 10) {
       const [day, month, year] = editDueDateStr.split('/')
-      isoDate = `{$year}-${month}-${day}`
+      isoDate = `${year}-${month}-${day}`
     }
     onEdit(task.id, editTitle.trim(), editDesc.trim(), isoDate)
     setEditing(false)
@@ -80,7 +80,7 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
       const data = await response.json()
       
       if (response.ok && data.success) {
-        window.location.reload()
+        onRefresh()
       } else {
         alert(data.error || 'A IA não encontrou nenhuma tag compatível com esta tarefa')
       }
@@ -88,6 +88,26 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
       alert('A IA não encontrou nenhuma tag compatível com esta tarefa')
     } finally {
       setLoadingIA(false)
+    }
+  }
+
+  const handleManualTagToggle = async (tagId: string) => {
+    const currentTagIds = task.tags?.map(t => t.id) || []
+    const newTagIds = currentTagIds.includes(tagId)
+      ? currentTagIds.filter(id => id !== tagId)
+      : [...currentTagIds, tagId]
+
+    try {
+      const res = await fetch(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tagIds: newTagIds })
+      })
+      if (res.ok) {
+        onRefresh()
+      }
+    } catch (error) {
+      alert('Erro ao vincular tag manualmente.')
     }
   }
 
@@ -206,22 +226,42 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }: Props) {
           >
             {loadingIA ? 'Analisando...' : 'Tags IA'}
           </button>
-          <button
-            style={{
-              background: 'none',
-              border: '1px solid var(--border-dark)',
-              color: 'var(--ink-muted)',
-              padding: '0.35rem 0.7rem',
-              borderRadius: '3px',
-              cursor: 'pointer',
-              fontSize: '0.75rem',
-              transition: 'all 0.3s ease',
-              fontFamily: "'DM Mono', monospace",
-              letterSpacing: '0.05em'
-            }}
-          >
-            Tags Manual
-          </button>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setShowTagMenu(!showTagMenu) }}
+              style={{
+                background: 'none',
+                border: '1px solid var(--border-dark)',
+                color: 'var(--ink-muted)',
+                padding: '0.35rem 0.7rem',
+                borderRadius: '3px',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                transition: 'all 0.3s ease',
+                fontFamily: "'DM Mono', monospace",
+                letterSpacing: '0.05em'
+              }}
+            >
+              Tags Manual
+            </button>
+            {showTagMenu && (
+              <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: '8px', background: '#fff', border: '1px solid var(--border-dark)', borderRadius: '4px', padding: '8px', zIndex: 10, minWidth: '160px', display: 'flex', flexDirection: 'column', gap: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+                {availableTags.length === 0 ? (
+                  <span style={{ fontSize: '0.75rem', color: '#666' }}>Nenhuma tag criada</span>
+                ) : (
+                  availableTags.map(t => {
+                    const isSelected = task.tags?.some(tt => tt.id === t.id)
+                    return (
+                      <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, color: '#333' }} onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={isSelected || false} onChange={() => handleManualTagToggle(t.id)} />
+                        <span style={{ fontSize: '0.75rem' }}>{t.name}</span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

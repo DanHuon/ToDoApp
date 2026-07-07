@@ -32,9 +32,9 @@ export async function PATCH(
     }
 
     const body = await request.json()
-    const { title, description, completed, dueDate } = body
+    const { title, description, completed, dueDate, tagIds } = body
 
-    const data: { title?: string; description?: string | null; completed?: boolean; dueDate?: Date | null } = {}
+    const data: any = {}
 
     if (title !== undefined) {
       if (!title.trim()) {
@@ -55,9 +55,16 @@ export async function PATCH(
       data.dueDate = dueDate ? new Date(dueDate) : null
     }
 
+    if (tagIds !== undefined && Array.isArray(tagIds)) {
+      data.tags = {
+        set: tagIds.map((id: string) => ({ id }))
+      }
+    }
+
     const task = await prisma.task.update({
       where: { id: params.id },
       data,
+      include: { tags: true }
     })
 
     return NextResponse.json(task)

@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const tags = await prisma.tag.findMany({
       where: { userId },
       orderBy: { createdAt: 'desc' },
+      include: { tasks: true }
     });
     return NextResponse.json(tags);
   } catch (error) {
@@ -37,6 +38,9 @@ export async function POST(request: NextRequest) {
         name: name.trim(),
         description: description?.trim() || null,
         userId,
+      },
+      include: {
+        tasks: true,
       },
     });
     return NextResponse.json(tag, { status: 201 });

@@ -6,6 +6,7 @@ export interface Task {
   dueDate?: string | null
   createdAt: string
   updatedAt: string
+  tags?: Tag[]
 }
 
 export interface Tag {
@@ -14,4 +15,5 @@ export interface Tag {
   description: string | null
   createdAt: string
   updatedAt: string
+  tasks?: Task[]
 }
