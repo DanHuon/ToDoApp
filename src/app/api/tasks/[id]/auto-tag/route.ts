@@ -3,7 +3,62 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
-const ai = new GoogleGenAI({ apiKey: process.env.AI_API_KEY });
+
+// Helper para chamada ao Google Gemini
+async function tryGeminiAutoTag(prompt: string, apiKey: string): Promise<string[]> {
+  const ai = new GoogleGenAI({ apiKey });
+  const response = await ai.models.generateContent({
+    model: 'gemini-2.5-flash',
+    contents: prompt,
+    config: {
+      responseMimeType: 'application/json',
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          existingIds: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING },
+            description: 'Lista de IDs das tags existentes escolhidas.'
+          }
+        }
+      }
+    }
+  });
+
+  const parsed = JSON.parse(response.text || '{}');
+  return Array.isArray(parsed.existingIds) ? parsed.existingIds : [];
+}
+
+// Helper para chamada ao Groq (Llama-3.1-8b-instant)
+async function tryGroqAutoTag(prompt: string, apiKey: string): Promise<string[]> {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'llama-3.1-8b-instant',
+      messages: [
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      response_format: { type: 'json_object' }
+    })
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Groq API error (status ${res.status}): ${errText}`);
+  }
+
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content || '{}';
+  const parsed = JSON.parse(content);
+  return Array.isArray(parsed.existingIds) ? parsed.existingIds : [];
+}
 
 export async function POST(
   request: NextRequest,
@@ -40,8 +95,11 @@ export async function POST(
       Voce é um assistente inteligente de categorizacao de tarefas.
       Analise a tarefa abaixo e conecte todas as TAGS que facam sentido.
       Sua unica opcao e relacionar com alguma(s) das TAGS DISPONIVEIS abaixo.
-      Retorne uma lista com os 'existingIds' das tags existentes escolhidas.
-      Caso nenhuma se aplique, retorne uma lista vazia.
+      Retorne obrigatoriamente um objeto JSON com a seguinte estrutura:
+      {
+        "existingIds": ["id_da_tag1", "id_da_tag2"]
+      }
+      Caso nenhuma tag se aplique, retorne a lista "existingIds" vazia: {"existingIds": []}.
 
       TAREFA:
       Titulo: ${task.title}
@@ -51,28 +109,67 @@ export async function POST(
       ${tagsContext}
     `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            existingIds: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: 'Lista de IDs das tags existentes escolhidas que fazem sentido para a tarefa.'
-            },
-          }
-        },
-      },
-    });
+    // Monta a lista de provedores ativos com base nas chaves no .env
+    const providers = [];
+    
+    // Suporta tanto GEMINI_API_KEY quanto a variável anterior AI_API_KEY
+    const geminiKey = process.env.GEMINI_API_KEY || process.env.AI_API_KEY;
+    if (geminiKey) {
+      providers.push({
+        name: 'Gemini (Google)',
+        apiKey: geminiKey,
+        fn: tryGeminiAutoTag
+      });
+    }
 
-    const parsedResponse = JSON.parse(response.text || '{}');
-    const suggestedIds: string[] = Array.isArray(parsedResponse.existingIds)
-      ? parsedResponse.existingIds
-      : [];
+    if (process.env.LLAMA_API_KEY) {
+      providers.push({
+        name: 'Llama 3 (Groq)',
+        apiKey: process.env.LLAMA_API_KEY,
+        fn: tryGroqAutoTag
+      });
+    }
+
+    if (providers.length === 0) {
+      return NextResponse.json({ 
+        error: 'Nenhuma chave de API de IA configurada. Defina GEMINI_API_KEY ou LLAMA_API_KEY no arquivo .env.' 
+      }, { status: 400 });
+    }
+
+    let suggestedIds: string[] = [];
+    let executedSuccessfully = false;
+    const errors: string[] = [];
+
+    for (const provider of providers) {
+      try {
+        console.log(`[AutoTag] Tentando provedor: ${provider.name}...`);
+        suggestedIds = await provider.fn(prompt, provider.apiKey);
+        executedSuccessfully = true;
+        console.log(`[AutoTag] Sucesso com ${provider.name}. Sugestões:`, suggestedIds);
+        break; // Sucesso com o provedor, interrompe o loop
+      } catch (err: any) {
+        console.error(`[AutoTag] Falha com o provedor ${provider.name}:`, err.message || err);
+        errors.push(`${provider.name}: ${err.message || err}`);
+      }
+    }
+
+    if (!executedSuccessfully) {
+      const isRateLimit = errors.some(e => 
+        e.includes('429') || 
+        e.toLowerCase().includes('quota') || 
+        e.toLowerCase().includes('limit')
+      );
+      
+      if (isRateLimit) {
+        return NextResponse.json({ 
+          error: 'Limite de cota excedido em todos os provedores de IA configurados. Por favor, tente novamente mais tarde.' 
+        }, { status: 429 });
+      }
+
+      return NextResponse.json({ 
+        error: `Falha ao processar autotagueamento nos provedores de IA. Detalhes: ${errors.join(', ')}` 
+      }, { status: 500 });
+    }
 
     // Validar se as tags sugeridas realmente existem entre as tags disponíveis do usuário
     const validTagIds = suggestedIds.filter(id => availableTags.some(t => t.id === id));
@@ -93,24 +190,6 @@ export async function POST(
     return NextResponse.json({ error: 'A IA não encontrou nenhuma nova tag compatível com esta tarefa' }, { status: 404 });
   } catch (error) {
     console.error('Erro no Auto-Tagging:', error);
-
-    if (error && typeof error === 'object') {
-      const err = error as any;
-      const isRateLimit =
-        err.status === 429 ||
-        (err.message && (
-          err.message.includes('429') ||
-          err.message.toLowerCase().includes('quota') ||
-          err.message.toLowerCase().includes('limit')
-        ));
-
-      if (isRateLimit) {
-        return NextResponse.json({
-          error: 'Limite de requisições/cota da chave de API excedido. Por favor, aguarde um momento antes de tentar novamente.'
-        }, { status: 429 });
-      }
-    }
-
     return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
   }
 }

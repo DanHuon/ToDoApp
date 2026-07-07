@@ -34,27 +34,40 @@ npm run dev
 
 Após iniciar o servidor, acesse a aplicação pelo seu navegador no endereço: [http://localhost:3000](http://localhost:3000).
 
-## Configuração de IA e Modelos de Linguagem
+## Configuração de Provedores de IA (Fallback e Rotação)
 
-A aplicação conta com um sistema inteligente que categoriza as tarefas automaticamente via Inteligência Artificial. Para habilitar ou personalizar esta função, siga os passos abaixo:
+A aplicação conta com um sistema inteligente que categoriza as tarefas automaticamente via Inteligência Artificial. Ele possui suporte integrado para **Google Gemini** e **Groq (Llama 3)**, com um pipeline de fallback automático (caso a cota de um provedor acabe, ele tenta o próximo da lista).
 
-### 1. Definir a Chave de API
-Crie um arquivo `.env` na raiz do projeto (ou edite o existente) e configure a sua chave de API de IA de preferência usando a variável universal `AI_API_KEY`:
+### 1. Configurar Chaves de API (.env)
+Crie um arquivo `.env` na raiz do projeto (ou edite o existente) e configure as chaves dos provedores de IA que deseja habilitar:
+
 ```env
-AI_API_KEY=sua_chave_aqui
+# Chave da API do Google Gemini (AI Studio)
+GEMINI_API_KEY=sua_chave_gemini
+
+# Chave da API do Llama 3 (Groq)
+LLAMA_API_KEY=sua_chave_groq
 ```
 
-### 2. Personalizar o Modelo de IA
-Por padrão, a aplicação utiliza a API do Gemini com o modelo rápido **`gemini-2.5-flash`**. Caso deseje alterar para outro modelo (como o `gemini-2.5-pro` ou outro modelo de preferência), siga estas instruções:
+A aplicação detecta automaticamente quais chaves estão presentes e ativa apenas os provedores configurados.
 
-1. Abra o arquivo [auto-tag/route.ts](file:///d:/Programacao/ToDoApp/ToDo-app/src/app/api/tasks/%5Bid%5D/auto-tag/route.ts).
-2. Localize a chamada `ai.models.generateContent` (aproximadamente na linha 54) e altere a propriedade `model`:
+### 2. Funcionamento do Fallback e Chaves Suportadas
+* O sistema tentará categorizar a tarefa usando o **Gemini** (modelo `gemini-2.5-flash`) por padrão.
+* Se a requisição falhar (ex: erro de cota 429), ele tentará o provedor **Groq** (modelo `llama-3.1-8b-instant`) de forma transparente e imediata.
+* Se todos os provedores configurados falharem, o app exibe uma notificação amigável na tela.
 
-```diff
-     const response = await ai.models.generateContent({
--      model: 'gemini-2.5-flash',
-+      model: 'gemini-2.5-pro', // Insira o modelo de sua preferência aqui
-       contents: prompt,
+### 3. Como adicionar novos provedores ou modelos
+O fluxo de autotagueamento está centralizado no endpoint [src/app/api/tasks/[id]/auto-tag/route.ts](file:///d:/Programacao/ToDoApp/ToDo-app/src/app/api/tasks/%5Bid%5D/auto-tag/route.ts). 
+Para adicionar novos modelos ou provedores no futuro:
+1. Crie uma função auxiliar `try[NomeDoProvedor]AutoTag(prompt, apiKey)` que retorne um array contendo os IDs das tags sugeridas.
+2. Adicione o objeto do provedor contendo a chave do `.env` e a função auxiliar à lista de `providers` dentro do handler principal `POST`:
+```typescript
+    if (process.env.SEU_NOVO_PROVEDOR_KEY) {
+      providers.push({
+        name: 'Nome Do Provedor',
+        apiKey: process.env.SEU_NOVO_PROVEDOR_KEY,
+        fn: tryNovoProvedorAutoTag
+      });
+    }
 ```
-3. Salve o arquivo e a aplicação aplicará a mudança automaticamente em tempo de execução.
 

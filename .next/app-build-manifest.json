@@ -1,45 +1,16 @@
 {
   "pages": {
-    "/_not-found/page": [
-      "static/chunks/webpack-b98ce338fc170fea.js",
-      "static/chunks/fd9d1056-bef1823da86e40ac.js",
-      "static/chunks/23-f400ee333b8954c8.js",
-      "static/chunks/main-app-58e974eef6ed0fb9.js",
-      "static/chunks/app/_not-found/page-638d679ae1c57039.js"
+    "/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/page.css",
+      "static/chunks/app/page.js"
     ],
     "/layout": [
-      "static/chunks/webpack-b98ce338fc170fea.js",
-      "static/chunks/fd9d1056-bef1823da86e40ac.js",
-      "static/chunks/23-f400ee333b8954c8.js",
-      "static/chunks/main-app-58e974eef6ed0fb9.js",
-      "static/css/07567fca693095ef.css",
-      "static/chunks/app/layout-3477be3b1374ff85.js"
-    ],
-    "/admin/dashboard/page": [
-      "static/chunks/webpack-b98ce338fc170fea.js",
-      "static/chunks/fd9d1056-bef1823da86e40ac.js",
-      "static/chunks/23-f400ee333b8954c8.js",
-      "static/chunks/main-app-58e974eef6ed0fb9.js",
-      "static/css/5fdd0ad69b0d99bf.css",
-      "static/chunks/315-77df1c4c00a6e172.js",
-      "static/chunks/app/admin/dashboard/page-3403f291bac44bcb.js"
-    ],
-    "/auth/login/page": [
-      "static/chunks/webpack-b98ce338fc170fea.js",
-      "static/chunks/fd9d1056-bef1823da86e40ac.js",
-      "static/chunks/23-f400ee333b8954c8.js",
-      "static/chunks/main-app-58e974eef6ed0fb9.js",
-      "static/css/7e63e6cd5ce4c3df.css",
-      "static/chunks/app/auth/login/page-35e6fbfe4f65456a.js"
-    ],
-    "/page": [
-      "static/chunks/webpack-b98ce338fc170fea.js",
-      "static/chunks/fd9d1056-bef1823da86e40ac.js",
-      "static/chunks/23-f400ee333b8954c8.js",
-      "static/chunks/main-app-58e974eef6ed0fb9.js",
-      "static/css/5fdd0ad69b0d99bf.css",
-      "static/chunks/315-77df1c4c00a6e172.js",
-      "static/chunks/app/page-a9bd40c8e0b05006.js"
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/layout.css",
+      "static/chunks/app/layout.js"
     ]
   }
 }
