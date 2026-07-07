@@ -21,6 +21,19 @@ export default function TodoApp() {
   const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [autoTagEnabled, setAutoTagEnabled] = useState(false)
+
+  useEffect(() => {
+    const saved = localStorage.getItem('auto-tag-new-tasks')
+    if (saved !== null) {
+      setAutoTagEnabled(saved === 'true')
+    }
+  }, [])
+
+  const handleAutoTagToggle = (checked: boolean) => {
+    setAutoTagEnabled(checked)
+    localStorage.setItem('auto-tag-new-tasks', String(checked))
+  }
 
   const fetchTags = useCallback(async () => {
     try {
@@ -127,6 +140,23 @@ export default function TodoApp() {
       })
       if (!res.ok) throw new Error()
       const created = await res.json()
+
+      if (autoTagEnabled) {
+        try {
+          const autoTagRes = await fetch(`/api/tasks/${created.id}/auto-tag`, {
+            method: 'POST',
+          })
+          const autoTagData = await autoTagRes.json()
+          if (autoTagRes.ok && autoTagData.success && autoTagData.task) {
+            setTasks(prev => prev.map(t => (t.id === optimisticTask.id ? autoTagData.task : t)))
+            fetchTags()
+            return
+          }
+        } catch (e) {
+          console.error('Error auto-tagging on task creation:', e)
+        }
+      }
+
       setTasks(prev => prev.map(t => (t.id === optimisticTask.id ? created : t)))
     } catch {
       setTasks(prev => prev.filter(t => t.id !== optimisticTask.id))
@@ -243,6 +273,15 @@ export default function TodoApp() {
               >
                 {viewMode === 'tags' ? 'Voltar para Tarefas' : 'Visualizar Tags'}
               </button>
+              <label className={styles.autoTagToggle} style={{ marginTop: '8px' }}>
+                <input
+                  type="checkbox"
+                  className={styles.autoTagCheckbox}
+                  checked={autoTagEnabled}
+                  onChange={(e) => handleAutoTagToggle(e.target.checked)}
+                />
+                <span className={styles.autoTagLabel}>Vincular tags automaticamente (IA)</span>
+              </label>
             </div>
 
             <div className={styles.sidebarSection} style={{ display: viewMode === 'tags' ? 'none' : 'flex' }}>
