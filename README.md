@@ -33,3 +33,28 @@ npm run dev
 ```
 
 Após iniciar o servidor, acesse a aplicação pelo seu navegador no endereço: [http://localhost:3000](http://localhost:3000).
+
+## Configuração da API do Gemini e Modelos de IA
+
+A aplicação conta com um sistema inteligente que categoriza as tarefas automaticamente via Inteligência Artificial. Para habilitar ou personalizar esta função, siga os passos abaixo:
+
+### 1. Definir a Chave de API
+Crie um arquivo `.env` na raiz do projeto (ou edite o existente) e adicione a sua chave do Google AI Studio:
+```env
+GEMINI_API_KEY=sua_chave_aqui
+```
+
+### 2. Alterar o Modelo de IA
+Por padrão, a aplicação utiliza o modelo super rápido **`gemini-2.5-flash`**. Caso deseje alterar para um modelo diferente (como o `gemini-2.5-pro` para análises mais complexas), siga estas instruções:
+
+1. Abra o arquivo [auto-tag/route.ts](file:///d:/Programacao/ToDoApp/ToDo-app/src/app/api/tasks/%5Bid%5D/auto-tag/route.ts).
+2. Localize a chamada `ai.models.generateContent` (aproximadamente na linha 54) e altere a propriedade `model`:
+
+```diff
+     const response = await ai.models.generateContent({
+-      model: 'gemini-2.5-flash',
++      model: 'gemini-2.5-pro', // Insira o modelo de sua preferência aqui
+       contents: prompt,
+```
+3. Salve o arquivo e a aplicação aplicará a mudança automaticamente em tempo de execução.
+
