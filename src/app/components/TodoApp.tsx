@@ -8,20 +8,24 @@ import TaskForm from './TaskForm'
 import TaskList from './TaskList'
 import TagForm from './TagForm'
 import TagList from './TagList'
+import KanbanTemporal from './KanbanTemporal'
+import KanbanCategorico from './KanbanCategorico'
 import styles from './TodoApp.module.css'
 
 type Filter = 'all' | 'active' | 'completed'
+type ViewMode = 'tasks' | 'tags' | 'kanban-temporal' | 'kanban-categorico'
 
 export default function TodoApp() {
   const router = useRouter()
   const { session, logout } = useAuth()
   const [tasks, setTasks] = useState<Task[]>([])
   const [filter, setFilter] = useState<Filter>('all')
-  const [viewMode, setViewMode] = useState<'tasks' | 'tags'>('tasks')
+  const [viewMode, setViewMode] = useState<ViewMode>('tasks')
   const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [autoTagEnabled, setAutoTagEnabled] = useState(false)
+  const [toast, setToast] = useState<{ message: string; onUndo: () => void } | null>(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('auto-tag-new-tasks')
@@ -220,6 +224,169 @@ export default function TodoApp() {
     }
   }
 
+  const handleMoveTask = async (taskId: string, targetColumn: 'scheduled' | 'backlog' | 'completed') => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+
+    const originalCompleted = task.completed
+    const originalDueDate = task.dueDate
+
+    let completed = originalCompleted
+    let dueDate = originalDueDate
+
+    if (targetColumn === 'completed') {
+      completed = true
+    } else if (targetColumn === 'backlog') {
+      completed = false
+      dueDate = null
+    } else if (targetColumn === 'scheduled') {
+      completed = false
+    }
+
+    // Optimistic UI update
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed, dueDate } : t))
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ completed, dueDate })
+      })
+      if (!res.ok) throw new Error()
+      const updated = await res.json()
+      setTasks(prev => prev.map(t => t.id === taskId ? updated : t))
+
+      if (targetColumn === 'backlog' && originalDueDate !== null) {
+        setToast({
+          message: `Prazo da tarefa "${task.title}" removido`,
+          onUndo: async () => {
+            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: originalCompleted, dueDate: originalDueDate } : t))
+            try {
+              const undoRes = await fetch(`/api/tasks/${taskId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ completed: originalCompleted, dueDate: originalDueDate })
+              })
+              if (undoRes.ok) {
+                const undoData = await undoRes.json()
+                setTasks(prev => prev.map(t => t.id === taskId ? undoData : t))
+                fetchTags()
+              }
+            } catch {
+              setError('Erro ao desfazer alteração.')
+            }
+            setToast(null)
+          }
+        })
+        setTimeout(() => {
+          setToast(prev => prev?.message.includes(`"${task.title}"`) ? null : prev)
+        }, 5000)
+      }
+      fetchTags()
+    } catch {
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, completed: originalCompleted, dueDate: originalDueDate } : t))
+      setError('Erro ao mover tarefa.')
+    }
+  }
+
+  const handleUpdateDueDate = async (taskId: string, newDueDate: string | null) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+
+    const originalDueDate = task.dueDate
+    const originalCompleted = task.completed
+    const isoDate = newDueDate ? new Date(newDueDate).toISOString() : null
+
+    // Optimistic UI update
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, dueDate: isoDate, completed: false } : t))
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dueDate: isoDate, completed: false })
+      })
+      if (!res.ok) throw new Error()
+      const updated = await res.json()
+      setTasks(prev => prev.map(t => t.id === taskId ? updated : t))
+      fetchTags()
+    } catch {
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, dueDate: originalDueDate, completed: originalCompleted } : t))
+      setError('Erro ao atualizar prazo da tarefa.')
+    }
+  }
+
+  const handleCategoricalAddTag = async (taskId: string, tagId: string) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+
+    const currentTagIds = task.tags?.map(t => t.id) || []
+    if (currentTagIds.includes(tagId)) return
+
+    const newTagIds = [...currentTagIds, tagId]
+
+    // Optimistic UI update
+    setTasks(prev => prev.map(t => {
+      if (t.id === taskId) {
+        const addedTag = tags.find(tag => tag.id === tagId)
+        return {
+          ...t,
+          tags: addedTag ? [...(t.tags || []), addedTag] : (t.tags || [])
+        }
+      }
+      return t
+    }))
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tagIds: newTagIds })
+      })
+      if (!res.ok) throw new Error()
+      const updated = await res.json()
+      setTasks(prev => prev.map(t => (t.id === taskId ? updated : t)))
+      fetchTags()
+    } catch {
+      setTasks(prev => prev.map(t => (t.id === taskId ? task : t)))
+      setError('Erro ao vincular tag à tarefa.')
+    }
+  }
+
+  const handleCategoricalRemoveTag = async (taskId: string, tagId: string) => {
+    const task = tasks.find(t => t.id === taskId)
+    if (!task) return
+
+    const currentTagIds = task.tags?.map(t => t.id) || []
+    const newTagIds = currentTagIds.filter(id => id !== tagId)
+
+    // Optimistic UI update
+    setTasks(prev => prev.map(t => {
+      if (t.id === taskId) {
+        return {
+          ...t,
+          tags: (t.tags || []).filter(tag => tag.id !== tagId)
+        }
+      }
+      return t
+    }))
+
+    try {
+      const res = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tagIds: newTagIds })
+      })
+      if (!res.ok) throw new Error()
+      const updated = await res.json()
+      setTasks(prev => prev.map(t => (t.id === taskId ? updated : t)))
+      fetchTags()
+    } catch {
+      setTasks(prev => prev.map(t => (t.id === taskId ? task : t)))
+      setError('Erro ao remover tag da tarefa.')
+    }
+  }
+
   const filteredTasks = tasks.filter(t => {
     if (filter === 'active') return !t.completed
     if (filter === 'completed') return t.completed
@@ -259,48 +426,83 @@ export default function TodoApp() {
         <aside className={styles.sidebar}>
           <div className={styles.sidebarSticky}>
             <div className={styles.sidebarSection}>
-              <h2 className={styles.sectionLabel}>NOVA TAREFA</h2>
-              <TaskForm onAdd={addTask} />
-            </div>
-
-            <div className={styles.sidebarSection}>
-              <h2 className={styles.sectionLabel}>TAGS</h2>
-              <TagForm onAdd={addTag} />
-              <button
-                className={styles.clearBtn}
-                style={{ marginTop: '12px' }}
-                onClick={() => setViewMode(viewMode === 'tags' ? 'tasks' : 'tags')}
-              >
-                {viewMode === 'tags' ? 'Voltar para Tarefas' : 'Visualizar Tags'}
-              </button>
-              <label className={styles.autoTagToggle} style={{ marginTop: '8px' }}>
-                <input
-                  type="checkbox"
-                  className={styles.autoTagCheckbox}
-                  checked={autoTagEnabled}
-                  onChange={(e) => handleAutoTagToggle(e.target.checked)}
-                />
-                <span className={styles.autoTagLabel}>Vincular tags automaticamente (IA)</span>
-              </label>
-            </div>
-
-            <div className={styles.sidebarSection} style={{ display: viewMode === 'tags' ? 'none' : 'flex' }}>
-              <h2 className={styles.sectionLabel}>Filtrar Tarefas</h2>
+              <h2 className={styles.sectionLabel}>Visualizações</h2>
               <nav className={styles.filters}>
-                {(['all', 'active', 'completed'] as Filter[]).map(f => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
-                  >
-                    <span className={styles.filterLabel}>
-                      {f === 'all' ? 'Todas' : f === 'active' ? 'Pendentes' : 'Concluídas'}
-                    </span>
-                    <span className={styles.filterCount}>{counts[f] || 0}</span>
-                  </button>
-               ))}
+                <button
+                  onClick={() => setViewMode('tasks')}
+                  className={`${styles.filterBtn} ${viewMode === 'tasks' ? styles.filterBtnActive : ''}`}
+                >
+                  <span className={styles.filterLabel}>Lista de Tarefas</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('kanban-temporal')}
+                  className={`${styles.filterBtn} ${viewMode === 'kanban-temporal' ? styles.filterBtnActive : ''}`}
+                >
+                  <span className={styles.filterLabel}>Kanban Prazos</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('kanban-categorico')}
+                  className={`${styles.filterBtn} ${viewMode === 'kanban-categorico' ? styles.filterBtnActive : ''}`}
+                >
+                  <span className={styles.filterLabel}>Kanban Tags</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('tags')}
+                  className={`${styles.filterBtn} ${viewMode === 'tags' ? styles.filterBtnActive : ''}`}
+                >
+                  <span className={styles.filterLabel}>Gerenciar Tags</span>
+                </button>
               </nav>
             </div>
+
+            {viewMode === 'tasks' && (
+              <div className={styles.sidebarSection}>
+                <h2 className={styles.sectionLabel}>Nova Tarefa</h2>
+                <TaskForm onAdd={addTask} />
+              </div>
+            )}
+
+            {viewMode === 'tags' && (
+              <div className={styles.sidebarSection}>
+                <h2 className={styles.sectionLabel}>Nova Tag</h2>
+                <TagForm onAdd={addTag} />
+              </div>
+            )}
+
+            {viewMode === 'tasks' && (
+              <div className={styles.sidebarSection}>
+                <h2 className={styles.sectionLabel}>Filtrar Tarefas</h2>
+                <nav className={styles.filters}>
+                  {(['all', 'active', 'completed'] as Filter[]).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      className={`${styles.filterBtn} ${filter === f ? styles.filterBtnActive : ''}`}
+                    >
+                      <span className={styles.filterLabel}>
+                        {f === 'all' ? 'Todas' : f === 'active' ? 'Pendentes' : 'Concluídas'}
+                      </span>
+                      <span className={styles.filterCount}>{counts[f] || 0}</span>
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            )}
+
+            {viewMode === 'tasks' && (
+              <div className={styles.sidebarSection}>
+                <h2 className={styles.sectionLabel}>Preferências</h2>
+                <label className={styles.autoTagToggle}>
+                  <input
+                    type="checkbox"
+                    className={styles.autoTagCheckbox}
+                    checked={autoTagEnabled}
+                    onChange={(e) => handleAutoTagToggle(e.target.checked)}
+                  />
+                  <span className={styles.autoTagLabel}>Vincular tags automaticamente (IA)</span>
+                </label>
+              </div>
+            )}
 
             {counts.completed > 0 && viewMode === 'tasks' && (
               <div className={styles.sidebarSection}>
@@ -309,10 +511,9 @@ export default function TodoApp() {
                   onClick={async () => {
                     const completed = tasks.filter(t => t.completed)
                     for (const t of completed) await deleteTask(t.id)
-                  }
-                  }
+                  }}
                 >
-                  Limpar concluidas
+                  Limpar concluídas
                 </button>
               </div>
             )}
@@ -332,10 +533,23 @@ export default function TodoApp() {
               <div className={styles.loadingDots}>
                 <span /><span /><span />
               </div>
-              <p>Carregando tarefas...</p>
+              <p>Carregando...</p>
             </div>
           ) : viewMode === 'tags' ? (
             <TagList tags={tags} onEdit={editTag} onDelete={deleteTag} />
+          ) : viewMode === 'kanban-temporal' ? (
+            <KanbanTemporal
+              tasks={tasks}
+              onMoveTask={handleMoveTask}
+              onUpdateDueDate={handleUpdateDueDate}
+            />
+          ) : viewMode === 'kanban-categorico' ? (
+            <KanbanCategorico
+              tasks={tasks}
+              tags={tags}
+              onAddTagToTask={handleCategoricalAddTag}
+              onRemoveTagFromTask={handleCategoricalRemoveTag}
+            />
           ) : (
             <TaskList
               tasks={filteredTasks}
@@ -349,6 +563,13 @@ export default function TodoApp() {
           )}
         </section>
       </main>
+
+      {toast && (
+        <div className={styles.toastContainer}>
+          <span>{toast.message}</span>
+          <button onClick={toast.onUndo} className={styles.toastUndoBtn}>Desfazer</button>
+        </div>
+      )}
 
       <footer className={styles.footer}>
         <div className={styles.footerRule} />

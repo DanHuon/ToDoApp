@@ -28,24 +28,27 @@ export async function POST(
     const currentTagIds = task.tags.map(t => t.id);
     const availableTags = allUserTags.filter(t => !currentTagIds.includes(t.id));
 
+    if (availableTags.length === 0) {
+      return NextResponse.json({ error: 'Todas as tags disponíveis já foram vinculadas a esta tarefa' }, { status: 400 });
+    }
+
     const tagsContext = availableTags
       .map((t) => `ID: ${t.id} | Nome: ${t.name} | Descricao: ${t.description}`)
       .join('\n');
 
     const prompt = `
       Voce é um assistente inteligente de categorizacao de tarefas.
-      Analise a tarefa abaixo e conecte uma TAG que faca sentido.
-      Voce DEVE SUGERIR EXATAMENTE UMA TAG.
-      Sua unica opcao e relacionar com alguma das TAGS DISPONIVEIS abaixo.
-      Retorne apenas o 'existingId' da tag existente escolhida.
-      Caso nenhuma se aplique, deixe vazio.
+      Analise a tarefa abaixo e conecte todas as TAGS que facam sentido.
+      Sua unica opcao e relacionar com alguma(s) das TAGS DISPONIVEIS abaixo.
+      Retorne uma lista com os 'existingIds' das tags existentes escolhidas.
+      Caso nenhuma se aplique, retorne uma lista vazia.
 
       TAREFA:
       Titulo: ${task.title}
       Descricao: ${task.description || 'Sem descricao'}
 
-      TAGS DISPONIVEIS  (Nao repita tags que ja estao na tarefa):
-      ${tagsContext || 'Nenhuma tag disponivel.'}
+      TAGS DISPONIVEIS (Nao repita tags que ja estao na tarefa):
+      ${tagsContext}
     `;
 
     const response = await ai.models.generateContent({
@@ -56,22 +59,30 @@ export async function POST(
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            existingId: { type: Type.STRING, description: 'ID da tag existente escolhida. Remova este campo se nenhuma se aplicar.' },
+            existingIds: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+              description: 'Lista de IDs das tags existentes escolhidas que fazem sentido para a tarefa.'
+            },
           }
         },
       },
     });
 
     const parsedResponse = JSON.parse(response.text || '{}');
-    
-    let finalTagId = parsedResponse.existingId || null;
+    const suggestedIds: string[] = Array.isArray(parsedResponse.existingIds)
+      ? parsedResponse.existingIds
+      : [];
 
-    if (finalTagId) {
+    // Validar se as tags sugeridas realmente existem entre as tags disponíveis do usuário
+    const validTagIds = suggestedIds.filter(id => availableTags.some(t => t.id === id));
+
+    if (validTagIds.length > 0) {
       const updatedTask = await prisma.task.update({
         where: { id: taskId },
         data: {
           tags: {
-            connect: [{ id: finalTagId }],
+            connect: validTagIds.map(id => ({ id })),
           },
         },
         include: { tags: true },
@@ -79,9 +90,27 @@ export async function POST(
       return NextResponse.json({ success: true, task: updatedTask });
     }
 
-    return NextResponse.json({ error: 'A IA não encontrou nenhuma tag compatível com esta tarefa' }, { status: 404 });
+    return NextResponse.json({ error: 'A IA não encontrou nenhuma nova tag compatível com esta tarefa' }, { status: 404 });
   } catch (error) {
     console.error('Erro no Auto-Tagging:', error);
+
+    if (error && typeof error === 'object') {
+      const err = error as any;
+      const isRateLimit =
+        err.status === 429 ||
+        (err.message && (
+          err.message.includes('429') ||
+          err.message.toLowerCase().includes('quota') ||
+          err.message.toLowerCase().includes('limit')
+        ));
+
+      if (isRateLimit) {
+        return NextResponse.json({
+          error: 'Limite de requisições/cota da chave de API excedido. Por favor, aguarde um momento antes de tentar novamente.'
+        }, { status: 429 });
+      }
+    }
+
     return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
   }
 }
