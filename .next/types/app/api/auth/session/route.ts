@@ -1,4 +1,4 @@
-// File: D:\Programacao\ToDoApp\ToDo-app\src\app\api\auth\session\route.ts
+// File: /home/sotero/Documentos/ToDoApp-main/src/app/api/auth/session/route.ts
 import * as entry from '../../../../../../src/app/api/auth/session/route.js'
 import type { NextRequest } from 'next/server.js'
 
