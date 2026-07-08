@@ -16,18 +16,24 @@ Abra o seu terminal e acesse a pasta raiz do projeto.
 npm install
 ```
 
-**3. Configure o banco de dados**
+**3. Configure as variáveis de ambiente**
+Crie um arquivo chamado `.env` na raiz do projeto e adicione a seguinte linha. Essa variável é necessária para o Prisma saber onde criar e gerenciar o arquivo local do banco SQLite:
+```env
+DATABASE_URL="file:./dev.db"
+```
+
+**4. Configure o banco de dados**
 Gere o banco SQLite e aplique as configurações (schemas):
 ```bash
 npm run db:push
 ```
 
-**4. Crie os usuários e dados de demonstração (Seed)**
+**5. Crie os usuários e dados de demonstração (Seed)**
 ```bash
 npx ts-node prisma/seed.ts
 ```
 
-**5. Inicie o servidor de desenvolvimento**
+**6. Inicie o servidor de desenvolvimento**
 ```bash
 npm run dev
 ```
