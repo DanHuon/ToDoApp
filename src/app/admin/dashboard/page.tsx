@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/app/lib/AuthContext'
 import { useRouter } from 'next/navigation'
 import styles from './AdminDashboard.module.css'
+import { motion, AnimatePresence } from 'framer-motion'
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import { LayoutDashboard, Users, Settings, FileText, Menu, X, CheckSquare, BarChart3, Flame } from 'lucide-react'
 
 interface User {
   id: string
@@ -40,6 +43,9 @@ export default function AdminDashboard() {
   })
   const [loading, setLoading] = useState(true)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [isSidebarExpanded, setSidebarExpanded] = useState(false)
+  const [activeTab, setActiveTab] = useState('stats')
+  const [expandedStat, setExpandedStat] = useState<string | null>(null)
 
   useEffect(() => {
     if (!session) {
@@ -86,6 +92,20 @@ export default function AdminDashboard() {
     )
   }
 
+  const completedTasks = Math.round((stats.totalTasks * stats.completionRate) / 100);
+  const pendingTasks = stats.totalTasks - completedTasks;
+  const pieData = [
+    { name: 'Concluídas', value: completedTasks, color: '#4a7c59' }, 
+    { name: 'Pendentes', value: pendingTasks, color: '#c8442f' },
+  ];
+
+  const statCards = [
+    { id: 'users', icon: <Users size={24} />, label: 'Usuários', value: stats.totalUsers },
+    { id: 'tasks', icon: <CheckSquare size={24} />, label: 'Tarefas', value: stats.totalTasks },
+    { id: 'rate', icon: <BarChart3 size={24} />, label: 'Taxa de conclusão', value: `${stats.completionRate.toFixed(1)}%` },
+    { id: 'active', icon: <Flame size={24} />, label: 'Ativos hoje', value: stats.activeToday },
+  ];
+
   return (
     <div className={styles.root}>
       {/* Header */}
@@ -111,64 +131,207 @@ export default function AdminDashboard() {
       {/* Main Content */}
       <main className={styles.main}>
         {/* Sidebar */}
-        <aside className={styles.sidebar}>
+        <motion.aside 
+          className={styles.sidebar}
+          animate={{ width: isSidebarExpanded ? 240 : 64 }}
+          transition={{ type: 'spring', bounce: 0, duration: 0.4 }}
+        >
+          <button 
+            className={styles.sidebarToggle}
+            onClick={() => setSidebarExpanded(!isSidebarExpanded)}
+          >
+            {isSidebarExpanded ? <X size={16} /> : <Menu size={16} />}
+          </button>
+
           <nav className={styles.nav}>
             <div className={styles.navSection}>
-              <p className={styles.navLabel}>Dashboard</p>
-              <a href="#stats" className={styles.navLink}>
-                Estatísticas
-              </a>
-              <a href="#users" className={styles.navLink}>
-                Usuários
-              </a>
+              <div className={styles.navLabelContainer}>
+                <AnimatePresence>
+                  {isSidebarExpanded && (
+                    <motion.p 
+                      className={styles.navLabel}
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: 'auto' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      Dashboard
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+              
+              <div onClick={() => setActiveTab('stats')} className={`${styles.navItem} ${activeTab === 'stats' ? styles.navItemActive : ''}`}>
+                <div className={styles.navIcon}><LayoutDashboard size={20} /></div>
+                <AnimatePresence>
+                  {isSidebarExpanded && (
+                    <motion.span 
+                      className={styles.navText}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.2, delay: 0.05 }}
+                    >
+                      Estatísticas
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
+              
+              <div onClick={() => setActiveTab('users')} className={`${styles.navItem} ${activeTab === 'users' ? styles.navItemActive : ''}`}>
+                <div className={styles.navIcon}><Users size={20} /></div>
+                <AnimatePresence>
+                  {isSidebarExpanded && (
+                    <motion.span 
+                      className={styles.navText}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.2, delay: 0.1 }}
+                    >
+                      Usuários
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            <div className={styles.navSection}>
+              <div className={styles.navLabelContainer}>
+                <AnimatePresence>
+                  {isSidebarExpanded && (
+                    <motion.p 
+                      className={styles.navLabel}
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: 'auto' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      Gerenciamento
+                    </motion.p>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div onClick={() => setActiveTab('reports')} className={`${styles.navItem} ${activeTab === 'reports' ? styles.navItemActive : ''}`}>
+                <div className={styles.navIcon}><FileText size={20} /></div>
+                <AnimatePresence>
+                  {isSidebarExpanded && (
+                    <motion.span 
+                      className={styles.navText}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.2, delay: 0.15 }}
+                    >
+                      Relatórios
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div onClick={() => setActiveTab('settings')} className={`${styles.navItem} ${activeTab === 'settings' ? styles.navItemActive : ''}`}>
+                <div className={styles.navIcon}><Settings size={20} /></div>
+                <AnimatePresence>
+                  {isSidebarExpanded && (
+                    <motion.span 
+                      className={styles.navText}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.2, delay: 0.2 }}
+                    >
+                      Configurações
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </nav>
-        </aside>
+        </motion.aside>
 
         {/* Content */}
         <section className={styles.content}>
-          {/* Stats Grid */}
-          <div className={styles.statsGrid} id="stats">
-            <div className={styles.statCard}>
-              <div className={styles.statIcon}>👥</div>
-              <div className={styles.statContent}>
-                <p className={styles.statLabel}>Usuários</p>
-                <p className={styles.statValue}>{stats.totalUsers}</p>
-              </div>
-              <div className={styles.statAccent} />
+          {/* Stats Tab (Progresso Geral) */}
+          <div style={{ display: activeTab === 'stats' ? 'block' : 'none' }}>
+            {/* Stats Grid */}
+            <div className={styles.statsGrid} id="stats">
+              {statCards.map(stat => {
+                const isExpanded = expandedStat === stat.id;
+                return (
+                  <motion.div 
+                    layout
+                    key={stat.id}
+                    onClick={() => setExpandedStat(isExpanded ? null : stat.id)}
+                    className={`${styles.statCard} ${isExpanded ? styles.statCardExpanded : styles.statCardCollapsed}`}
+                    style={{ borderRadius: isExpanded ? '12px' : '40px' }}
+                  >
+                    <motion.div layout className={styles.statIcon}>
+                      {stat.icon}
+                    </motion.div>
+                    
+                    <AnimatePresence>
+                      {isExpanded && (
+                        <motion.div 
+                          className={styles.statContent}
+                          initial={{ opacity: 0, width: 0 }}
+                          animate={{ opacity: 1, width: 'auto' }}
+                          exit={{ opacity: 0, width: 0 }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <p className={styles.statLabel}>{stat.label}</p>
+                          <p className={styles.statValue}>{stat.value}</p>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+                )
+              })}
             </div>
 
-            <div className={styles.statCard}>
-              <div className={styles.statIcon}>✓</div>
-              <div className={styles.statContent}>
-                <p className={styles.statLabel}>Tarefas</p>
-                <p className={styles.statValue}>{stats.totalTasks}</p>
-              </div>
-              <div className={styles.statAccent} />
+          {/* Chart Section */}
+          <section className={styles.chartSection}>
+            <div className={styles.sectionHeader} style={{ marginBottom: '0.5rem' }}>
+              <h2 className={styles.sectionTitle}>Progresso Geral</h2>
+              <p className={styles.sectionSubtitle}>
+                Distribuição de tarefas concluídas vs pendentes
+              </p>
             </div>
-
-            <div className={styles.statCard}>
-              <div className={styles.statIcon}>📊</div>
-              <div className={styles.statContent}>
-                <p className={styles.statLabel}>Taxa de conclusão</p>
-                <p className={styles.statValue}>
-                  {stats.completionRate.toFixed(1)}%
-                </p>
-              </div>
-              <div className={styles.statAccent} />
+            <div className={styles.chartContainer}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={80}
+                    outerRadius={120}
+                    paddingAngle={5}
+                    dataKey="value"
+                    animationBegin={200}
+                    animationDuration={1000}
+                  >
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'var(--bg-card)', 
+                      borderColor: 'var(--border)',
+                      borderRadius: '4px',
+                      color: 'var(--ink)'
+                    }} 
+                    itemStyle={{ color: 'var(--ink)' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
-
-            <div className={styles.statCard}>
-              <div className={styles.statIcon}>🔥</div>
-              <div className={styles.statContent}>
-                <p className={styles.statLabel}>Ativos hoje</p>
-                <p className={styles.statValue}>{stats.activeToday}</p>
-              </div>
-              <div className={styles.statAccent} />
-            </div>
+          </section>
           </div>
 
-          {/* Users Section */}
+          {/* Users Tab */}
+          <div style={{ display: activeTab === 'users' ? 'block' : 'none' }}>
           <section className={styles.usersSection} id="users">
             <div className={styles.sectionHeader}>
               <h2 className={styles.sectionTitle}>Usuários do sistema</h2>
@@ -236,6 +399,27 @@ export default function AdminDashboard() {
               </div>
             </div>
           </section>
+          </div>
+
+          {/* Reports Tab */}
+          <div style={{ display: activeTab === 'reports' ? 'block' : 'none' }}>
+            <section className={styles.usersSection}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>Relatórios</h2>
+                <p className={styles.sectionSubtitle}>Módulo em desenvolvimento...</p>
+              </div>
+            </section>
+          </div>
+
+          {/* Settings Tab */}
+          <div style={{ display: activeTab === 'settings' ? 'block' : 'none' }}>
+            <section className={styles.usersSection}>
+              <div className={styles.sectionHeader}>
+                <h2 className={styles.sectionTitle}>Configurações</h2>
+                <p className={styles.sectionSubtitle}>Módulo em desenvolvimento...</p>
+              </div>
+            </section>
+          </div>
         </section>
       </main>
 
