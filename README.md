@@ -45,7 +45,12 @@ Após iniciar o servidor, acesse a aplicação pelo seu navegador no endereço: 
 A aplicação conta com um sistema inteligente que categoriza as tarefas automaticamente via Inteligência Artificial. Ele possui suporte integrado para **Google Gemini** e **Groq (Llama 3)**, com um pipeline de fallback automático (caso a cota de um provedor acabe, ele tenta o próximo da lista).
 
 ### 1. Configurar Chaves de API (.env)
-Crie um arquivo `.env` na raiz do projeto (ou edite o existente) e configure as chaves dos provedores de IA que deseja habilitar:
+Crie um arquivo `.env` na raiz do projeto (ou edite o existente) e adicione as chaves de API dos provedores que deseja utilizar. Você pode obter suas chaves nos seguintes endereços:
+
+* **Google Gemini (AI Studio):** Acesse o [Google AI Studio API Keys](https://aistudio.google.com/app/api-keys), realize o login com sua conta Google e clique em **"Create API key"** para gerar sua chave.
+* **Groq Console (Llama 3):** Acesse o [Groq Console Keys](https://console.groq.com/keys), faça o login e clique em **"Create API Key"** para gerar a chave de acesso do Groq.
+
+Adicione as chaves correspondentes no seu arquivo `.env`:
 
 ```env
 # Chave da API do Google Gemini (AI Studio)
